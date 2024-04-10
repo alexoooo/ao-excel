@@ -10,7 +10,7 @@ Option Compare Text
 
 
 '-------------------------------------------------------------------------
-Private Const SEP_STR As String = "•"
+Private Const SEP_STR As String = "|·^"
 Private workingDirSet As Boolean
 
 
@@ -1309,9 +1309,9 @@ End Function
 '   certain text or that match as certain pattern.
 ' There is an inbuilt function that does just that, however it
 '   has a few flaws which this function fixes.
-' This function guerantees that the returned cells will be
+' This function guarantees that the returned cells will be
 '   ordered top-left to bottom-right.
-' This function lets you specify wether you want a pattern match
+' This function lets you specify whether you want a pattern match
 '   or an exact match.
 '
 Function aoFindRegex( _
@@ -1388,13 +1388,8 @@ Private Function aoFindAsIs( _
         Set aoFindAsIs = aoFindPatternUsingLoop(bounds, findLike)
         Exit Function
     End If
- 
-																	   
-						 
-											  
 
     Set oneMatch = bounds.Find(findLike, lookIn:=xlValues)
-										 
     If Not (oneMatch Is Nothing) Then
         firstAddress = oneMatch.Address
         Do
@@ -2123,7 +2118,7 @@ Private Function aoExtractLowestStairSpan( _
                         bounds, _
                         aoRelativeRange( _
                             lastNonBlankCell, _
-                            aoOppositDirection(minorDirection)) _
+                            aoOppositeDirection(minorDirection)) _
                     ) _
                 )
     End If
@@ -2152,7 +2147,7 @@ Private Function aoReducingStairValFinder( _
                     bounds, _
                     aoRelativeRange( _
                         leastMinorStairSpan, _
-                        aoOppositDirection(majorDirection)) _
+                        aoOppositeDirection(majorDirection)) _
                 ), _
                 isVertical, minorDirection, majorDirection _
             )
@@ -2164,7 +2159,7 @@ Function aoStairVal( _
         aCell As Range, _
         Optional isVertical As Boolean = True) As String
 
-    Dim lookIn As Range, lookat As Range
+    Dim lookIn As Range, lookAt As Range
     Dim majorDirection As Direction, minorDirection As Direction
 
     If isVertical Then
@@ -2180,16 +2175,16 @@ Function aoStairVal( _
         Exit Function
     Else
         Set lookIn = Union(lookIn, lookIn)
-        Set lookat = aoIntersectAsIs(lookIn, aCell)
+        Set lookAt = aoIntersectAsIs(lookIn, aCell)
 
-        Debug.Assert Not (lookat Is Nothing)
-        Debug.Assert lookat.cells.Count = 1
+        Debug.Assert Not (lookAt Is Nothing)
+        Debug.Assert lookAt.cells.Count = 1
 
         If lookIn.Areas.Count > 1 Then
             Dim anArea As Range
 
             For Each anArea In lookIn.Areas
-                If Not (Intersect(anArea, lookat) Is Nothing) Then
+                If Not (Intersect(anArea, lookAt) Is Nothing) Then
                     Set lookIn = anArea
                     Exit For
                 End If
@@ -2197,7 +2192,7 @@ Function aoStairVal( _
         End If
     End If
 
-    If Len(aoCellVal(lookat)) = 0 Then
+    If Len(aoCellVal(lookAt)) = 0 Then
         If isVertical Then
             aoStairVal = _
                 aoCachedStairVal( _
@@ -2213,27 +2208,27 @@ Function aoStairVal( _
         If Len(aoStairVal) = 0 Then
             aoStairVal = _
                 aoReducingStairValFinder( _
-                    Range(lookIn.cells(1, 1), lookat), _
+                    Range(lookIn.cells(1, 1), lookAt), _
                     isVertical, minorDirection, majorDirection)
         End If
     Else
-        aoStairVal = aoCellVal(lookat)
+        aoStairVal = aoCellVal(lookAt)
     End If
 
     aoStairVal = Trim(aoStairVal)
-    aoCachedStairVal lookIn, lookat, isVertical, aoStairVal
+    aoCachedStairVal lookIn, lookAt, isVertical, aoStairVal
 End Function
 
-Private Function aoOppositDirection(d As Direction) As Direction
+Private Function aoOppositeDirection(d As Direction) As Direction
     Select Case d
         Case Direction.UP
-            aoOppositDirection = Direction.Down
+            aoOppositeDirection = Direction.Down
         Case Direction.Down
-            aoOppositDirection = Direction.UP
+            aoOppositeDirection = Direction.UP
         Case Direction.LEFT_HAND
-            aoOppositDirection = Direction.RIGHT_HAND
+            aoOppositeDirection = Direction.RIGHT_HAND
         Case Direction.RIGHT_HAND
-            aoOppositDirection = Direction.LEFT_HAND
+            aoOppositeDirection = Direction.LEFT_HAND
         Case Else
             Debug.Assert False
     End Select
@@ -2863,7 +2858,7 @@ Private Function aoValuesOfMatchingKeys( _
 End Function
 
 
-Private Function aoDictOfRangeValueVsRange( _
+Function aoDictOfRangeValueVsRange( _
         ranges As Collection, _
         Optional ByVal stairBounds As Variant, _
         Optional isStairVertical As Boolean _
@@ -2906,7 +2901,6 @@ Function aoJoinRangeVals( _
     Dim aCell As Range, useStair As Boolean, stairBoundRange As Range
     Set aRange = aoExtractRange(aRange)
 
-    ' grrrr, no short circuiting
     If Not IsMissing(stairBounds) Then
         If Not (stairBounds Is Nothing) Then
             Set stairBoundRange = aoExtractRange(stairBounds)
@@ -2916,26 +2910,40 @@ Function aoJoinRangeVals( _
             End If
         End If
     End If
-
+    
+    Dim first As Boolean
+    first = True
+    
     aoJoinRangeVals = ""
     For Each aCell In aRange.cells
-        If useStair Then
-            aoJoinRangeVals = _
-                    aoJoinRangeVals & SEP_STR & _
-                        aoStairVal( _
-                            stairBoundRange, aCell, isStairVertical)
+        If first Then
+            first = False
         Else
             aoJoinRangeVals = _
-                    aoJoinRangeVals & SEP_STR & aoCellVal(aCell)
+                    aoJoinRangeVals & SEP_STR
+        End If
+    
+        If useStair Then
+            aoJoinRangeVals = _
+                    aoJoinRangeVals & _
+                    aoStairVal( _
+                        stairBoundRange, aCell, isStairVertical)
+        Else
+            aoJoinRangeVals = _
+                    aoJoinRangeVals & aoCellVal(aCell)
         End If
     Next
-    aoJoinRangeVals = _
-            right( _
-                aoJoinRangeVals, _
-                Len(aoJoinRangeVals) - Len(SEP_STR))
 End Function
 
-
+Function aoJoinEmptyVals(count As Long)
+    aoJoinEmptyVals = ""
+    If count > 1 Then
+        Dim i As Long
+        For i = 1 To count
+            aoJoinEmptyVals = aoJoinEmptyVals & SEP_STR
+        Next
+    End If
+End Function
 
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -3148,8 +3156,8 @@ Function aoClearFormat(ws As Worksheet)
         .Font.Bold = False
         .Font.Italic = False
         .Font.ColorIndex = 0
-        .Font.size = 8
-        .Font.name = "Arial"
+        .Font.size = 11
+        .Font.name = "Calibri"
         .Interior.ColorIndex = xlColorIndexNone
         .HorizontalAlignment = xlGeneral
 
@@ -3157,17 +3165,21 @@ Function aoClearFormat(ws As Worksheet)
         .Borders(xlInsideHorizontal).LineStyle = xlNone
     End With
 
-    ' NB: sometimes breaks without this repetition
+    aoUngroup ws
+    'On Error Resume Next
+    ws.Activate
+    ActiveWindow.FreezePanes = False
+End Function
+
+
+Function aoUngroup(ws As Worksheet)
     On Error Resume Next
     ws.rows.Ungroup
     ws.rows.Ungroup
     ws.rows.Ungroup
-    'ws.Columns.Ungroup
-    'ws.Columns.Ungroup
-    'ws.Columns.Ungroup
-
-    ws.Activate
-    ActiveWindow.FreezePanes = False
+    ws.Columns.Ungroup
+    ws.Columns.Ungroup
+    ws.Columns.Ungroup
 End Function
 
 
@@ -3708,7 +3720,7 @@ Public Function aoOpen( _
     If aoOpen Is Nothing Then
         'Set aoOpen = aoWorkbookLike( _
                 fileWithOptionalPath, allowEdit, False)
-		Exit Functing
+        Exit Function
     ElseIf fileName <> fileWithOptionalPath And _
             fileWithOptionalPath <> _
               (aoOpen.Path & "\" & fileName) Then
@@ -3811,5 +3823,4 @@ Private Function aoDoScanOpenWorkbooksPattern( _
 return_nothing:
     Set aoDoScanOpenWorkbooksPattern = Nothing
 End Function
-
 
